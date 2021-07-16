@@ -1154,7 +1154,7 @@ $tw.Wiki = function(options) {
 				var index = tiddlerTitles.indexOf(title);
 				if(index !== -1) {
 					tiddlerTitles.splice(index,1);
-				}				
+				}
 			}
 			// Record the new tiddler state
 			updateDescriptor["new"] = {
@@ -1301,7 +1301,7 @@ $tw.Wiki = function(options) {
 				}
 			} else {
 				if(pluginInfo[title]) {
-					delete pluginInfo[title];					
+					delete pluginInfo[title];
 					results.deletedPlugins.push(title);
 				}
 			}
@@ -1724,13 +1724,20 @@ $tw.modules.define("$:/boot/tiddlerdeserializer/dom","tiddlerdeserializer",{
 			},
 			t,result = [];
 		if(node) {
-			for(t = 0; t < node.childNodes.length; t++) {
+			var type = (node.getAttribute && node.getAttribute("type")) || null;
+			if(type) {
+				// A new-style container with an explicit deserialization type
+				result = $tw.wiki.deserializeTiddlers(type,node.textContent);
+			} else {
+				// An old-style container of classic DIV-based tiddlers
+				for(t = 0; t < node.childNodes.length; t++) {
 					var childNode = node.childNodes[t],
 						tiddlers = extractTextTiddlers(childNode);
 					tiddlers = tiddlers || extractModuleTiddlers(childNode);
 					if(tiddlers) {
 						result.push.apply(result,tiddlers);
 					}
+				}
 			}
 		}
 		return result;
@@ -1739,17 +1746,23 @@ $tw.modules.define("$:/boot/tiddlerdeserializer/dom","tiddlerdeserializer",{
 
 $tw.loadTiddlersBrowser = function() {
 	// In the browser, we load tiddlers from certain elements
-	var containerIds = [
-		"libraryModules",
-		"modules",
-		"bootKernelPrefix",
-		"bootKernel",
-		"styleArea",
-		"storeArea",
-		"systemArea"
+	var containerSelectors = [
+		// IDs for old-style v5.1.x tiddler stores
+		"#libraryModules",
+		"#modules",
+		"#bootKernelPrefix",
+		"#bootKernel",
+		"#styleArea",
+		"#storeArea",
+		"#systemArea",
+		// Classes for new-style v5.2.x JSON tiddler stores
+		"script.tiddlywiki-tiddler-store"
 	];
-	for(var t=0; t<containerIds.length; t++) {
-		$tw.wiki.addTiddlers($tw.wiki.deserializeTiddlers("(DOM)",document.getElementById(containerIds[t])));
+	for(var t=0; t<containerSelectors.length; t++) {
+		var nodes = document.querySelectorAll(containerSelectors[t]);
+		for(var n=0; n<nodes.length; n++) {
+			$tw.wiki.addTiddlers($tw.wiki.deserializeTiddlers("(DOM)",nodes[n]));
+		}
 	}
 };
 
@@ -1940,7 +1953,7 @@ $tw.loadTiddlersFromSpecification = function(filepath,excludeRegExp) {
 				}
 			} else {
 				console.log("Warning: a directory in a tiddlywiki.files file does not exist.");
-				console.log("dirPath: " + dirPath);	
+				console.log("dirPath: " + dirPath);
 				console.log("tiddlywiki.files location: " + filepath);
 			}
 		}
@@ -1985,7 +1998,7 @@ $tw.loadPluginFolder = function(filepath,excludeRegExp) {
 		pluginInfo.dependents = pluginInfo.dependents || [];
 		pluginInfo.type = "application/json";
 		// Set plugin text
-		pluginInfo.text = JSON.stringify({tiddlers: pluginInfo.tiddlers},null,4);
+		pluginInfo.text = JSON.stringify({tiddlers: pluginInfo.tiddlers});
 		delete pluginInfo.tiddlers;
 		// Deserialise array fields (currently required for the dependents field)
 		for(var field in pluginInfo) {
@@ -2199,7 +2212,7 @@ $tw.loadTiddlersNode = function() {
 				type = parts[0];
 			if(parts.length  === 3 && ["plugins","themes","languages"].indexOf(type) !== -1) {
 				$tw.loadPlugins([parts[1] + "/" + parts[2]],$tw.config[type + "Path"],$tw.config[type + "EnvVar"]);
-			}			
+			}
 		}
 	});
 	// Load the tiddlers from the wiki directory
